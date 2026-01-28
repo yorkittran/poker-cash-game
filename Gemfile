@@ -52,6 +52,11 @@ group :development, :test do
 
   # Environment variable management
   gem "dotenv-rails"
+
+  # RSpec testing framework
+  gem "rspec-rails", "~> 6.0"
+  gem "factory_bot_rails"
+  gem "faker"
 end
 
 group :development do
@@ -66,4 +71,9 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+
+  # Testing utilities
+  gem "shoulda-matchers", "~> 4.5"
+  gem "database_cleaner-active_record"
+  gem "rails-controller-testing"
 end
