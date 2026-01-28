@@ -11,7 +11,7 @@ class Game < ApplicationRecord
   enum :round, { preflop: "preflop", flop: "flop", turn: "turn", river: "river", showdown: "showdown" }, default: :preflop
 
   # Validations
-  validates :name, presence: true
+  validates :name, presence: true, uniqueness: true
   validates :small_blind, :big_blind, :max_players, :min_buyin, :max_buyin, presence: true, numericality: { greater_than: 0 }
   validates :max_players, inclusion: { in: 2..9 }
   validates :pot, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true

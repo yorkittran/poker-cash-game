@@ -7,7 +7,8 @@ class GamePlayer < ApplicationRecord
 
   # Validations
   validates :position, presence: true, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than: 9 }
-  validates :chips, :buyin_amount, presence: true, numericality: { greater_than_or_equal_to: 0 }
+  validates :chips, presence: true, numericality: { greater_than_or_equal_to: 0 }
+  validates :buyin_amount, presence: true, numericality: { greater_than: 0 }
   validates :user_id, uniqueness: { scope: :game_id, message: "already in this game" }
 
   # Scopes

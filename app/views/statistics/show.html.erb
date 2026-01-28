@@ -1,0 +1,11 @@
+<h1>Game Statistics</h1>
+<div class="game-stats">
+  <h2><%= @game.name %></h2>
+  <div class="hands">
+    <% @hands.each do |hand| %>
+      <div class="hand">
+        Hand #<%= hand.hand_number %>
+      </div>
+    <% end %>
+  </div>
+</div>

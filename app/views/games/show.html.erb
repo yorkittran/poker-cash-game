@@ -1,0 +1,11 @@
+<h1><%= @game.name %></h1>
+<div class="game-table">
+  <div class="pot">Pot: <%= @game.pot %></div>
+  <div class="players">
+    <% @players.each do |player| %>
+      <div class="player">
+        <%= player.user.username %>: <%= player.chips %> chips
+      </div>
+    <% end %>
+  </div>
+</div>
