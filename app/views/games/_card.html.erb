@@ -1,0 +1,42 @@
+<%
+  # Handle both formats: "Kc" (letter suit) or "K♣" (symbol suit)
+  rank = card[0]
+  suit_char = card[1]
+
+  # Map both letter codes and symbols to display values
+  suit_letter_to_symbol = { 'h' => '♥', 'd' => '♦', 'c' => '♣', 's' => '♠' }
+  suit_symbol_to_color = { '♥' => 'text-red-500', '♦' => 'text-red-500', '♣' => 'text-slate-900', '♠' => 'text-slate-900' }
+  suit_letter_to_color = { 'h' => 'text-red-500', 'd' => 'text-red-500', 'c' => 'text-slate-900', 's' => 'text-slate-900' }
+  rank_display = { 'T' => '10', 'J' => 'J', 'Q' => 'Q', 'K' => 'K', 'A' => 'A' }
+
+  # Check if suit_char is already a symbol or needs conversion
+  if %w(♥ ♦ ♣ ♠).include?(suit_char)
+    display_suit = suit_char
+    color_class = suit_symbol_to_color[suit_char]
+  else
+    display_suit = suit_letter_to_symbol[suit_char]
+    color_class = suit_letter_to_color[suit_char]
+  end
+
+  display_rank = rank_display[rank] || rank
+
+  # Size options: small (hole cards), default (community cards)
+  if defined?(small) && small
+    # Hole cards - smaller
+    width = '32px'
+    height = '44px'
+    rank_class = 'text-xs'
+    suit_class = 'text-sm'
+  else
+    # Community cards - larger
+    width = '52px'
+    height = '72px'
+    rank_class = 'text-base'
+    suit_class = 'text-xl'
+  end
+%>
+
+<div class="bg-white rounded-lg shadow-lg flex flex-col items-center justify-center font-bold <%= color_class %> border border-gray-200" style="width: <%= width %>; height: <%= height %>;">
+  <span class="<%= rank_class %> leading-none"><%= display_rank %></span>
+  <span class="<%= suit_class %> leading-none"><%= display_suit %></span>
+</div>

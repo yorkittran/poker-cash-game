@@ -1,8 +1,259 @@
-<h1>Games Lobby</h1>
-<div class="games-list">
-  <% @games.each do |game| %>
-    <div class="game-card">
-      <%= game.name %>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-controller="lobby">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-white mb-2">Game Lobby</h1>
+      <p class="text-gray-400">Find a table or create your own</p>
     </div>
-  <% end %>
+
+    <button onclick="document.getElementById('createGameModal').classList.remove('hidden')"
+            class="mt-4 sm:mt-0 inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all">
+      <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Create Table
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-gray-400 text-sm">Active Tables</p>
+          <p class="text-2xl font-bold text-white"><%= @games.count %></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-gray-400 text-sm">Your Bankroll</p>
+          <p class="text-2xl font-bold text-white">$<%= number_with_delimiter(current_user.total_bankroll) %></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 bg-gradient-to-br from-violet-400 to-violet-600 rounded-xl flex items-center justify-center">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-gray-400 text-sm">Games Played</p>
+          <p class="text-2xl font-bold text-white"><%= current_user.games_played %></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
+    <div class="p-6 border-b border-white/10">
+      <h2 class="text-xl font-semibold text-white">Available Tables</h2>
+    </div>
+
+    <div data-lobby-target="gamesList">
+      <% if @games.any? %>
+        <div class="divide-y divide-white/10">
+          <% @games.each do |game| %>
+            <div class="p-6 hover:bg-white/5 transition-colors">
+              <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div class="flex-1">
+                  <div class="flex items-center space-x-3 mb-2">
+                    <h3 class="text-lg font-semibold text-white"><%= game.name %></h3>
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold <%= game.waiting? ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400' %>">
+                      <%= game.waiting? ? 'Waiting' : 'In Progress' %>
+                    </span>
+                  </div>
+
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span class="text-gray-500">Blinds</span>
+                      <p class="text-white font-medium"><%= game.small_blind %>/<%= game.big_blind %></p>
+                    </div>
+                    <div>
+                      <span class="text-gray-500">Buy-in</span>
+                      <p class="text-white font-medium"><%= game.min_buyin %> - <%= game.max_buyin %></p>
+                    </div>
+                    <div>
+                      <span class="text-gray-500">Players</span>
+                      <p class="text-white font-medium"><%= game.game_players.where.not(status: :left).count %>/<%= game.max_players %></p>
+                    </div>
+                    <div>
+                      <span class="text-gray-500">Created by</span>
+                      <p class="text-white font-medium"><%= game.created_by.username %></p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                  <% player_count = game.game_players.where.not(status: :left).count %>
+                  <% is_player = game.game_players.exists?(user: current_user) %>
+
+                  <% if is_player %>
+                    <%= link_to game_path(game), class: "px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all" do %>
+                      Return to Table
+                    <% end %>
+                  <% elsif player_count < game.max_players && game.waiting? %>
+                    <button onclick="openJoinModal(<%= game.id %>, '<%= game.name %>', <%= game.min_buyin %>, <%= game.max_buyin %>)"
+                            class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all">
+                      Join Table
+                    </button>
+                  <% elsif player_count >= game.max_players %>
+                    <span class="px-6 py-3 bg-white/5 text-gray-400 rounded-xl">Table Full</span>
+                  <% else %>
+                    <%= link_to game_path(game), class: "px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all" do %>
+                      Watch
+                    <% end %>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="p-12 text-center">
+          <div class="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-white mb-2">No Tables Available</h3>
+          <p class="text-gray-400 mb-6">Be the first to create a table and start playing!</p>
+          <button onclick="document.getElementById('createGameModal').classList.remove('hidden')"
+                  class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-semibold rounded-xl transition-all">
+            Create Your Table
+          </button>
+        </div>
+      <% end %>
+    </div>
+  </div>
 </div>
+
+<div id="createGameModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+  <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm" onclick="document.getElementById('createGameModal').classList.add('hidden')"></div>
+
+    <div class="relative bg-slate-800 rounded-2xl border border-white/10 shadow-2xl max-w-md w-full p-8 text-left">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-bold text-white">Create New Table</h3>
+        <button onclick="document.getElementById('createGameModal').classList.add('hidden')" class="text-gray-400 hover:text-white">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <%= form_with url: games_path, method: :post, local: true, class: "space-y-5" do |f| %>
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Table Name</label>
+          <input type="text" name="game[name]" required placeholder="e.g., Friday Night Poker"
+                 class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Small Blind</label>
+            <input type="number" name="game[small_blind]" required value="10" min="1"
+                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Big Blind</label>
+            <input type="number" name="game[big_blind]" required value="20" min="1"
+                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Min Buy-in</label>
+            <input type="number" name="game[min_buyin]" required value="100" min="1"
+                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Max Buy-in</label>
+            <input type="number" name="game[max_buyin]" required value="1000" min="1"
+                   class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Max Players</label>
+          <select name="game[max_players]" required
+                  class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <% (2..9).each do |n| %>
+              <option value="<%= n %>" <%= n == 6 ? 'selected' : '' %>><%= n %> Players</option>
+            <% end %>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Your Buy-in</label>
+          <input type="number" name="initial_buyin" required value="500" min="100"
+                 class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <p class="mt-1 text-xs text-gray-500">Amount you'll bring to the table</p>
+        </div>
+
+        <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all">
+          Create & Join Table
+        </button>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<div id="joinGameModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+  <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm" onclick="document.getElementById('joinGameModal').classList.add('hidden')"></div>
+
+    <div class="relative bg-slate-800 rounded-2xl border border-white/10 shadow-2xl max-w-md w-full p-8 text-left">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-bold text-white">Join <span id="joinGameName"></span></h3>
+        <button onclick="document.getElementById('joinGameModal').classList.add('hidden')" class="text-gray-400 hover:text-white">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <form id="joinGameForm" method="post" class="space-y-5">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Buy-in Amount</label>
+          <input type="number" name="buyin_amount" id="joinBuyinAmount" required
+                 class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <p class="mt-1 text-xs text-gray-500">Min: <span id="joinMinBuyin"></span> / Max: <span id="joinMaxBuyin"></span></p>
+        </div>
+
+        <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all">
+          Join Table
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function openJoinModal(gameId, gameName, minBuyin, maxBuyin) {
+  document.getElementById('joinGameName').textContent = gameName;
+  document.getElementById('joinMinBuyin').textContent = minBuyin;
+  document.getElementById('joinMaxBuyin').textContent = maxBuyin;
+  document.getElementById('joinBuyinAmount').value = Math.min(500, maxBuyin);
+  document.getElementById('joinBuyinAmount').min = minBuyin;
+  document.getElementById('joinBuyinAmount').max = maxBuyin;
+  document.getElementById('joinGameForm').action = `/games/${gameId}/join`;
+  document.getElementById('joinGameModal').classList.remove('hidden');
+}
+</script>

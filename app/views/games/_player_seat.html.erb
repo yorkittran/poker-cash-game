@@ -1,0 +1,81 @@
+<div class="flex flex-col items-center" data-position="<%= position %>" data-game-target="playerSeat-<%= position %>">
+  <% if player %>
+    <!-- Occupied Seat -->
+    <div class="flex flex-col items-center">
+      <div class="relative">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold shadow-lg
+                    <%= player.position == game.current_player_position ? 'bg-gradient-to-br from-amber-400 to-amber-600 ring-4 ring-amber-400/50 animate-pulse' : 'bg-gradient-to-br from-slate-600 to-slate-700' %>
+                    <%= player.status == 'folded' ? 'opacity-50' : '' %>">
+          <%= player.user.username[0..1].upcase %>
+        </div>
+
+        <% if player.position == game.dealer_position %>
+          <div class="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs font-bold text-black shadow-lg">
+            D
+          </div>
+        <% end %>
+
+        <% if player.status == 'all_in' %>
+          <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-1 bg-red-500 rounded-full text-[10px] font-bold text-white whitespace-nowrap">
+            ALL IN
+          </div>
+        <% end %>
+      </div>
+
+      <div class="mt-2 text-center">
+        <p class="text-white text-sm font-medium"><%= player.user.username %></p>
+        <p class="text-emerald-400 text-xs font-semibold">$<%= number_with_delimiter(player.chips) %></p>
+      </div>
+
+      <% if player.user_id == current_user.id && player.hole_cards.present? %>
+        <!-- Current user's actual hole cards -->
+        <div class="flex gap-2 mt-2" data-game-target="holeCards">
+          <% player.hole_cards.each do |card| %>
+            <%= render partial: 'games/card', locals: { card: card, small: true } %>
+          <% end %>
+        </div>
+      <% elsif game.in_progress? && player.status.in?(['active', 'all_in']) %>
+        <!-- Other players in hand - show card backs -->
+        <div class="flex gap-2 mt-2">
+          <div class="rounded border-2 border-white shadow-lg" style="width: 32px; height: 44px; background: linear-gradient(135deg, #10b981 0%, #065f46 100%);">
+            <div class="w-full h-full flex items-center justify-center">
+              <div class="w-5 h-7 border-2 border-white/60 rounded"></div>
+            </div>
+          </div>
+          <div class="rounded border-2 border-white shadow-lg" style="width: 32px; height: 44px; background: linear-gradient(135deg, #10b981 0%, #065f46 100%);">
+            <div class="w-full h-full flex items-center justify-center">
+              <div class="w-5 h-7 border-2 border-white/60 rounded"></div>
+            </div>
+          </div>
+        </div>
+      <% else %>
+        <!-- Empty placeholder (folded or out of hand) -->
+        <div class="flex gap-2 mt-2">
+          <div class="bg-slate-700/30 rounded" style="width: 32px; height: 44px;"></div>
+          <div class="bg-slate-700/30 rounded" style="width: 32px; height: 44px;"></div>
+        </div>
+      <% end %>
+
+      <% if player.current_bet > 0 && player.status != 'folded' %>
+        <div class="mt-2 w-12 h-12 rounded-full flex items-center justify-center shadow-lg" style="background-color: #f59e0b;">
+          <span class="text-white text-xs font-bold"><%= number_with_delimiter(player.current_bet) %></span>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <!-- Empty Seat Placeholder -->
+    <div class="flex flex-col items-center opacity-50">
+      <div class="w-16 h-16 rounded-full bg-white/10 border-2 border-white/20 border-dashed flex items-center justify-center">
+        <span class="text-white text-xs font-medium">P<%= position + 1 %></span>
+      </div>
+      <div class="mt-2 text-center">
+        <p class="text-white text-xs">Empty</p>
+      </div>
+      <!-- Placeholder hole cards -->
+      <div class="flex gap-2 mt-2">
+        <div class="bg-white/10 border border-white/20 border-dashed rounded" style="width: 32px; height: 44px;"></div>
+        <div class="bg-white/10 border border-white/20 border-dashed rounded" style="width: 32px; height: 44px;"></div>
+      </div>
+    </div>
+  <% end %>
+</div>

@@ -1,11 +1,308 @@
-<h1><%= @game.name %></h1>
-<div class="game-table">
-  <div class="pot">Pot: <%= @game.pot %></div>
-  <div class="players">
-    <% @players.each do |player| %>
-      <div class="player">
-        <%= player.user.username %>: <%= player.chips %> chips
+<div class="min-h-screen" data-controller="game" data-game-game-id-value="<%= @game.id %>" data-game-your-position-value="<%= @game_player&.position %>">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center space-x-4">
+        <%= link_to games_path, class: "p-2 hover:bg-white/10 rounded-lg transition-colors" do %>
+          <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+        <% end %>
+        <div>
+          <h1 class="text-2xl font-bold text-white"><%= @game.name %></h1>
+          <p class="text-gray-400 text-sm">Blinds: <%= @game.small_blind %>/<%= @game.big_blind %></p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <div class="px-4 py-2 bg-white/5 rounded-xl border border-white/10">
+          <span class="text-gray-400 text-sm">Hand #</span>
+          <span class="text-white font-semibold" data-game-target="handNumber"><%= @game.current_hand_number %></span>
+        </div>
+
+        <% if @game_player %>
+          <%= button_to leave_game_path(@game), method: :post, class: "px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl border border-red-500/30 transition-colors", data: { turbo_confirm: "Are you sure you want to leave? You'll cash out with #{@game_player.chips} chips." } do %>
+            Leave Table
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="flex gap-6">
+      <!-- Poker Table with Players Positioned Around It -->
+      <div class="flex-1">
+        <div class="relative max-w-5xl mx-auto" style="min-height: 700px; padding: 60px 0;">
+          <!-- Poker Table (Centered) -->
+          <div class="absolute" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60%; max-width: 650px;">
+            <div class="bg-gradient-to-b from-emerald-800 to-emerald-900 rounded-[80px] border-8 border-amber-900/50 shadow-2xl shadow-black/50 aspect-[2/1] relative overflow-hidden">
+              <!-- Center Content: Cards + Pot -->
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="flex flex-col items-center">
+                  <!-- Community Cards - Always 5 slots -->
+                  <div class="flex items-center justify-center gap-2" data-game-target="communityCards">
+                    <% cards = @game.community_cards || [] %>
+                    <% 5.times do |i| %>
+                      <% if cards[i] %>
+                        <%= render partial: 'games/card', locals: { card: cards[i] } %>
+                      <% else %>
+                        <div class="bg-emerald-700/30 rounded-lg border-2 border-emerald-600/20" style="width: 52px; height: 72px;"></div>
+                      <% end %>
+                    <% end %>
+                  </div>
+
+                  <!-- POT - Below community cards -->
+                  <div class="mt-4 inline-flex items-center gap-2 px-5 py-2 bg-black/50 rounded-full">
+                    <span class="text-amber-400 font-bold text-base">POT</span>
+                    <span class="text-white font-bold text-xl" data-game-target="pot"><%= number_with_delimiter(@game.pot) %></span>
+                  </div>
+
+                  <!-- Countdown Timer (shown during showdown) -->
+                  <div class="mt-3 hidden" data-game-target="countdown"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Player Seats Positioned Around Table -->
+          <!-- Position 0: Top Center -->
+          <div class="absolute" style="top: 5%; left: 50%; transform: translateX(-50%);">
+            <%= render partial: 'games/player_seat', locals: { position: 0, player: @players.find { |p| p.position == 0 }, game: @game, current_user: current_user } %>
+          </div>
+
+          <!-- Position 1: Top Right -->
+          <div class="absolute" style="top: 12%; right: 10%;">
+            <%= render partial: 'games/player_seat', locals: { position: 1, player: @players.find { |p| p.position == 1 }, game: @game, current_user: current_user } %>
+          </div>
+
+          <!-- Position 2: Right -->
+          <div class="absolute" style="top: 50%; right: 0; transform: translateY(-50%);">
+            <%= render partial: 'games/player_seat', locals: { position: 2, player: @players.find { |p| p.position == 2 }, game: @game, current_user: current_user } %>
+          </div>
+
+          <!-- Position 3: Bottom Right -->
+          <div class="absolute" style="bottom: 12%; right: 10%;">
+            <%= render partial: 'games/player_seat', locals: { position: 3, player: @players.find { |p| p.position == 3 }, game: @game, current_user: current_user } %>
+          </div>
+
+          <!-- Position 4: Bottom Center -->
+          <div class="absolute" style="bottom: 5%; left: 50%; transform: translateX(-50%);">
+            <%= render partial: 'games/player_seat', locals: { position: 4, player: @players.find { |p| p.position == 4 }, game: @game, current_user: current_user } %>
+          </div>
+
+          <!-- Position 5: Bottom Left -->
+          <div class="absolute" style="bottom: 12%; left: 10%;">
+            <%= render partial: 'games/player_seat', locals: { position: 5, player: @players.find { |p| p.position == 5 }, game: @game, current_user: current_user } %>
+          </div>
+
+          <!-- Position 6: Left -->
+          <div class="absolute" style="top: 50%; left: 0; transform: translateY(-50%);">
+            <%= render partial: 'games/player_seat', locals: { position: 6, player: @players.find { |p| p.position == 6 }, game: @game, current_user: current_user } %>
+          </div>
+
+          <!-- Position 7: Top Left -->
+          <div class="absolute" style="top: 12%; left: 10%;">
+            <%= render partial: 'games/player_seat', locals: { position: 7, player: @players.find { |p| p.position == 7 }, game: @game, current_user: current_user } %>
+          </div>
+
+          <!-- Hidden container for JS updates -->
+          <div class="hidden" data-game-target="playersList"></div>
+        </div>
+      </div>
+
+      <!-- Action Log Panel -->
+      <div class="w-48 flex-shrink-0">
+        <div class="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 max-h-[500px] flex flex-col">
+          <!-- Showdown Mode Indicator -->
+          <div class="hidden mb-3" data-game-target="showdownIndicator">
+            <div class="bg-yellow-500 text-black px-3 py-2 rounded-lg font-bold text-xs text-center">
+              ⚡ SHOWDOWN MODE
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+            <span class="text-sm font-semibold text-white">Actions</span>
+            <span class="text-xs text-emerald-400 font-medium" data-game-target="round"><%= @game.round&.upcase || 'WAITING' %></span>
+          </div>
+
+          <!-- Actions List - Inline format grouped by round -->
+          <div class="flex-1 overflow-y-auto space-y-4" data-game-target="actionLog">
+            <% if @current_hand %>
+              <% actions_by_round = @current_hand.player_actions.chronological.group_by(&:round) %>
+              <% actions_by_round.each do |round, actions| %>
+                <div class="space-y-2">
+                  <div class="text-[10px] text-white/50 uppercase font-bold tracking-wide border-b border-white/10 pb-1.5 mb-2"><%= round %></div>
+                  <% actions.each do |action| %>
+                    <div class="flex items-center justify-between text-xs py-1">
+                      <span class="text-white truncate flex-1"><%= action.user.username %></span>
+                      <span class="<%= action.action_type == 'fold' ? 'text-red-400' : action.action_type == 'call' ? 'text-emerald-400' : action.action_type.in?(['raise', 'bet']) ? 'text-amber-400' : action.action_type == 'all_in' ? 'text-red-500' : 'text-blue-400' %> uppercase font-bold w-12 text-center">
+                        <%= action.action_type %>
+                      </span>
+                      <span class="text-white font-medium w-10 text-right">
+                        <% if action.amount && action.amount > 0 %>
+                          $<%= action.amount %>
+                        <% end %>
+                      </span>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            <% else %>
+              <p class="text-white/60 text-center py-4">No actions yet</p>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <% if @game_player && @game.waiting? %>
+      <!-- Ready/Waiting Phase -->
+      <div class="max-w-2xl mx-auto mt-8">
+        <div class="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+          <div class="text-center mb-6">
+            <h3 class="text-xl font-semibold text-white mb-2">Waiting for Players</h3>
+            <p class="text-gray-400 text-sm">Game will start when all players are ready (minimum 2 players)</p>
+          </div>
+
+          <!-- Players Ready Status -->
+          <div class="grid grid-cols-2 gap-3 mb-6" data-game-target="readyPlayersList">
+            <% @players.each do |player| %>
+              <div class="flex items-center justify-between p-3 rounded-xl <%= player.ready ? 'bg-emerald-500/20 border border-emerald-500/30' : 'bg-white/5 border border-white/10' %>">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm <%= player.ready ? 'bg-emerald-500' : 'bg-slate-600' %>">
+                    <%= player.user.username[0..1].upcase %>
+                  </div>
+                  <span class="text-white font-medium text-sm"><%= player.user.username %></span>
+                </div>
+                <span class="<%= player.ready ? 'text-emerald-400' : 'text-gray-500' %> text-sm font-semibold">
+                  <%= player.ready ? '✓ Ready' : 'Not Ready' %>
+                </span>
+              </div>
+            <% end %>
+          </div>
+
+          <!-- Ready Button -->
+          <div class="text-center" data-game-target="readyButton">
+            <% if @game_player.ready %>
+              <%= button_to ready_game_path(@game), method: :post, class: "px-8 py-3 bg-gray-500/20 hover:bg-gray-500/30 text-gray-300 font-semibold rounded-xl border border-gray-500/30 transition-all" do %>
+                Cancel Ready
+              <% end %>
+            <% else %>
+              <%= button_to ready_game_path(@game), method: :post, class: "px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 transition-all" do %>
+                I'm Ready!
+              <% end %>
+            <% end %>
+
+            <% ready_count = @players.count(&:ready) %>
+            <% total_count = @players.count %>
+            <p class="mt-3 text-gray-500 text-sm" data-game-target="readyCount">
+              <%= ready_count %>/<%= total_count %> players ready
+              <% if total_count < 2 %>
+                <span class="text-amber-400">(need at least 2 players)</span>
+              <% end %>
+            </p>
+          </div>
+        </div>
+      </div>
+    <% elsif @game_player && @game.in_progress? %>
+      <div class="max-w-2xl mx-auto mt-8" data-game-target="actionButtons">
+        <div class="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
+          <div class="text-center mb-4" data-game-target="currentTurn">
+            <% if @game_player.position == @game.current_player_position %>
+              <span class="text-emerald-400 font-semibold text-lg">Your Turn!</span>
+            <% else %>
+              <% current_player = @players.find { |p| p.position == @game.current_player_position } %>
+              <span class="text-gray-400">Waiting for <%= current_player&.user&.username || 'next player' %>...</span>
+            <% end %>
+          </div>
+
+          <%
+            current_max_bet = @players.maximum(:current_bet) || 0
+            amount_to_call = current_max_bet - @game_player.current_bet
+            can_check = amount_to_call <= 0
+            can_call = amount_to_call > 0
+            call_amount = [amount_to_call, @game_player.chips].min
+
+            # Calculate minimum raise based on last raise size
+            all_bets = @players.map(&:current_bet).uniq.sort.reverse
+            if all_bets.length >= 2
+              last_raise_size = all_bets[0] - all_bets[1]
+              min_raise = current_max_bet + last_raise_size
+            else
+              # No raise yet, minimum is double the current bet or current bet + big blind
+              min_raise = current_max_bet > 0 ? current_max_bet * 2 : @game.big_blind * 2
+            end
+
+            is_my_turn = @game_player.position == @game.current_player_position
+          %>
+          <div class="flex flex-wrap items-center justify-center gap-3" data-game-target="actionButtonsContainer">
+            <%= button_to "Fold", action_game_path(@game, action_type: 'fold'),
+                method: :post,
+                disabled: !is_my_turn,
+                class: "px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold rounded-xl border border-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed" %>
+
+            <!-- Check button - shown when no bet to call -->
+            <div data-game-target="checkButtonWrapper" class="<%= can_call ? 'hidden' : '' %>">
+              <%= button_to "Check", action_game_path(@game, action_type: 'check'),
+                  method: :post,
+                  disabled: !is_my_turn || can_call,
+                  class: "px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-semibold rounded-xl border border-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                  data: { action_type: 'check' } %>
+            </div>
+
+            <!-- Call button - shown when there's a bet to call -->
+            <div data-game-target="callButtonWrapper" class="<%= can_check ? 'hidden' : '' %>">
+              <%= button_to "Call #{call_amount}", action_game_path(@game, action_type: 'call'),
+                  method: :post,
+                  disabled: !is_my_turn || can_check,
+                  class: "px-6 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-semibold rounded-xl border border-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                  data: { action_type: 'call' } %>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <%= form_with url: action_game_path(@game), method: :post, local: true, class: "flex items-center space-x-2", data: { action_type: 'raise' } do %>
+                <input type="hidden" name="action_type" value="raise">
+                <input type="number" name="amount" value="<%= min_raise %>" min="<%= min_raise %>" max="<%= @game_player.chips + @game_player.current_bet %>"
+                       class="w-24 px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-center focus:outline-none focus:ring-2 focus:ring-amber-500"
+                       data-game-target="raiseAmount"
+                       <%= !is_my_turn ? 'disabled' : '' %>>
+                <button type="submit"
+                        <%= !is_my_turn ? 'disabled' : '' %>
+                        class="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 font-semibold rounded-xl border border-amber-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                  <%= can_call ? 'Raise to' : 'Bet' %>
+                </button>
+              <% end %>
+            </div>
+
+            <%= button_to "All In (#{@game_player.chips})", action_game_path(@game, action_type: 'all_in'),
+                method: :post,
+                disabled: !is_my_turn,
+                class: "px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-semibold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+                data: { action_type: 'all_in' } %>
+          </div>
+        </div>
+      </div>
+    <% elsif !@game_player && @game.waiting? %>
+      <div class="max-w-md mx-auto mt-8">
+        <div class="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 text-center">
+          <h3 class="text-lg font-semibold text-white mb-4">Join This Table</h3>
+          <%= form_with url: join_game_path(@game), method: :post, local: true, class: "space-y-4" do %>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-2">Buy-in Amount</label>
+              <input type="number" name="buyin_amount" value="500" min="<%= @game.min_buyin %>" max="<%= @game.max_buyin %>"
+                     class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-center focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <p class="mt-1 text-xs text-gray-500">Min: <%= @game.min_buyin %> / Max: <%= @game.max_buyin %></p>
+            </div>
+            <button type="submit" class="w-full py-3 px-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 transition-all">
+              Join Table
+            </button>
+          <% end %>
+        </div>
       </div>
     <% end %>
+
+    <div data-game-target="statusMessage" class="hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+      <div class="px-6 py-3 bg-slate-800 border border-white/10 rounded-xl shadow-xl backdrop-blur-xl">
+        <p class="text-white font-medium"></p>
+      </div>
+    </div>
   </div>
 </div>
