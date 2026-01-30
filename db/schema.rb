@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_01_27_054319) do
+ActiveRecord::Schema[7.2].define(version: 2026_01_30_022038) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -40,6 +40,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_01_27_054319) do
     t.string "status"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "ready", default: false, null: false
+    t.integer "current_bet", default: 0, null: false
     t.index ["game_id"], name: "index_game_players_on_game_id"
     t.index ["user_id"], name: "index_game_players_on_user_id"
   end
@@ -62,6 +64,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_01_27_054319) do
     t.integer "created_by_user_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "showdown_mode", default: false, null: false
   end
 
   create_table "hands", force: :cascade do |t|
@@ -76,6 +79,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_01_27_054319) do
     t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "ended_by_showdown", default: false, null: false
     t.index ["game_id"], name: "index_hands_on_game_id"
   end
 

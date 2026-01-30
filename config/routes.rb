@@ -14,14 +14,16 @@ Rails.application.routes.draw do
   root "games#index"
 
   # Game routes
-  resources :games, only: [:index, :show, :create] do
+  resources :games, only: [ :index, :show, :create ] do
     member do
       post :join
       post :leave
       post :action
+      post :ready
+      post :rebuy
     end
   end
 
   # Statistics routes
-  resources :statistics, only: [:index, :show]
+  resources :statistics, only: [ :index, :show ]
 end

@@ -1,12 +1,10 @@
-# frozen_string_literal: true
-
 class GamesController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_game, only: [:show, :join, :leave, :action]
+  before_action :set_game, only: [ :show, :join, :leave, :action, :ready, :rebuy ]
 
   def index
-    @games = Game.where(state: [:waiting, :in_progress]).order(created_at: :desc)
-    @my_games = current_user.games.where(state: [:waiting, :in_progress])
+    @games = Game.where(state: [ :waiting, :in_progress ]).order(created_at: :desc)
+    @my_games = current_user.games.where(state: [ :waiting, :in_progress ])
 
     respond_to do |format|
       format.html
@@ -67,7 +65,7 @@ class GamesController < ApplicationController
       service.join_game(current_user, params[:initial_buyin].to_i)
       game = service.instance_variable_get(:@game)
 
-      LobbyChannel.broadcast_update
+      Broadcasters::LobbyBroadcaster.broadcast
 
       respond_to do |format|
         format.html { redirect_to game_path(game), notice: "Game created successfully!" }
@@ -86,9 +84,8 @@ class GamesController < ApplicationController
     buyin_amount = params[:buyin_amount].to_i
 
     if service.join_game(current_user, buyin_amount)
-      broadcast_game_update(@game)
-
-      LobbyChannel.broadcast_update
+      Broadcasters::GameBroadcaster.broadcast(@game)
+      Broadcasters::LobbyBroadcaster.broadcast
 
       respond_to do |format|
         format.html { redirect_to game_path(@game), notice: "Joined game successfully!" }
@@ -106,9 +103,8 @@ class GamesController < ApplicationController
     service = GameService.new(@game)
 
     if service.leave_game(current_user)
-      broadcast_game_update(@game)
-
-      LobbyChannel.broadcast_update
+      Broadcasters::GameBroadcaster.broadcast(@game)
+      Broadcasters::LobbyBroadcaster.broadcast
 
       respond_to do |format|
         format.html { redirect_to games_path, notice: "Left game successfully!" }
@@ -133,7 +129,7 @@ class GamesController < ApplicationController
       )
 
       @game.reload
-      broadcast_game_update(@game)
+      Broadcasters::GameBroadcaster.broadcast(@game)
 
       respond_to do |format|
         format.html { redirect_to game_path(@game), notice: "Action processed" }
@@ -157,6 +153,45 @@ class GamesController < ApplicationController
     end
   end
 
+  def ready
+    service = GameService.new(@game)
+
+    if service.toggle_ready(current_user)
+      @game.reload
+      Broadcasters::GameBroadcaster.broadcast(@game)
+      Broadcasters::LobbyBroadcaster.broadcast
+
+      respond_to do |format|
+        format.html { redirect_to game_path(@game) }
+        format.json { render json: { message: "Ready status updated" }, status: :ok }
+      end
+    else
+      respond_to do |format|
+        format.html { redirect_to game_path(@game), alert: "Could not update ready status" }
+        format.json { render json: { error: "Could not update ready status" }, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  def rebuy
+    service = GameService.new(@game)
+    rebuy_amount = params[:rebuy_amount].to_i
+
+    if service.rebuy(current_user, rebuy_amount)
+      Broadcasters::GameBroadcaster.broadcast(@game)
+
+      respond_to do |format|
+        format.html { redirect_to game_path(@game), notice: "Rebuy successful! You'll join the next hand." }
+        format.json { render json: { message: "Rebuy successful" }, status: :ok }
+      end
+    else
+      respond_to do |format|
+        format.html { redirect_to game_path(@game), alert: "Failed to rebuy. Check amount and try again." }
+        format.json { render json: { error: "Failed to rebuy" }, status: :unprocessable_entity }
+      end
+    end
+  end
+
   private
 
   def set_game
@@ -172,34 +207,5 @@ class GamesController < ApplicationController
       :min_buyin,
       :max_buyin
     )
-  end
-
-  def broadcast_game_update(game)
-    GameChannel.broadcast_to(game, {
-      type: "game_state",
-      game: {
-        id: game.id,
-        name: game.name,
-        state: game.state,
-        pot: game.pot,
-        round: game.round,
-        community_cards: game.community_cards,
-        current_hand_number: game.current_hand_number,
-        current_player_position: game.current_player_position,
-        small_blind: game.small_blind,
-        big_blind: game.big_blind
-      },
-      players: game.game_players.by_position.includes(:user).map do |player|
-        {
-          id: player.id,
-          user_id: player.user_id,
-          username: player.user.username,
-          position: player.position,
-          chips: player.chips,
-          status: player.status,
-          is_current_player: player.position == game.current_player_position
-        }
-      end
-    })
   end
 end

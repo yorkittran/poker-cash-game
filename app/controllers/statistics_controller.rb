@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class StatisticsController < ApplicationController
   before_action :authenticate_user!
 
@@ -27,7 +25,7 @@ class StatisticsController < ApplicationController
             games_played: @total_games,
             hands_won: @total_hands_won
           },
-          sessions: @cash_sessions.map { |s|
+          cash_sessions: @cash_sessions.map { |s|
             {
               game_id: s.game_id,
               game_name: s.game.name,

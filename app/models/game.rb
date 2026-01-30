@@ -1,16 +1,15 @@
 class Game < ApplicationRecord
-  # Associations
   belongs_to :created_by, class_name: "User", foreign_key: "created_by_user_id"
   has_many :game_players, dependent: :destroy
   has_many :users, through: :game_players
   has_many :hands, dependent: :destroy
   has_many :cash_sessions, dependent: :destroy
 
-  # Enums
   enum :state, { waiting: "waiting", in_progress: "in_progress", completed: "completed" }, default: :waiting
-  enum :round, { preflop: "preflop", flop: "flop", turn: "turn", river: "river", showdown: "showdown" }, default: :preflop
+  enum :round, { preflop: "preflop", flop: "flop", turn: "turn", river: "river" }, default: :preflop
 
-  # Validations
+  scope :active_games, -> { where(state: [ :waiting, :in_progress ]) }
+
   validates :name, presence: true, uniqueness: true
   validates :small_blind, :big_blind, :max_players, :min_buyin, :max_buyin, presence: true, numericality: { greater_than: 0 }
   validates :max_players, inclusion: { in: 2..9 }
