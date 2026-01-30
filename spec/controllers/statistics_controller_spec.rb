@@ -40,7 +40,7 @@ RSpec.describe StatisticsController, type: :controller do
 
         json_response = JSON.parse(response.body)
         expect(json_response['user']).to be_present
-        expect(json_response['sessions']).to be_an(Array)
+        expect(json_response['cash_sessions']).to be_an(Array)
         expect(json_response['total_profit']).to be_present
         expect(json_response['win_rate']).to be_present
       end
@@ -57,7 +57,7 @@ RSpec.describe StatisticsController, type: :controller do
         get :index, format: :json
 
         json_response = JSON.parse(response.body)
-        session_data = json_response['sessions'].first
+        session_data = json_response['cash_sessions'].first
 
         expect(session_data['game_id']).to be_present
         expect(session_data['buyin']).to be_present

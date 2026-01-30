@@ -13,8 +13,8 @@ FactoryBot.define do
 
     trait :completed do
       pot { 100 }
-      community_cards { ["Ah", "Kd", "Qc", "Js", "Td"] }
-      winners { [{ user_id: 1, username: "player1", amount: 100, hand_name: "Royal Flush" }] }
+      community_cards { [ "Ah", "Kd", "Qc", "Js", "Td" ] }
+      winners { [ { user_id: 1, username: "player1", amount: 100, hand_name: "Royal Flush" } ] }
       completed_at { Time.current }
     end
   end

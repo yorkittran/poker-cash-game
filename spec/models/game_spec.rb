@@ -50,7 +50,7 @@ RSpec.describe Game, type: :model do
     end
 
     it 'defines round enum' do
-      expect(Game.rounds).to eq('preflop' => 'preflop', 'flop' => 'flop', 'turn' => 'turn', 'river' => 'river', 'showdown' => 'showdown')
+      expect(Game.rounds).to eq('preflop' => 'preflop', 'flop' => 'flop', 'turn' => 'turn', 'river' => 'river')
     end
   end
 

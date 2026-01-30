@@ -66,13 +66,13 @@ RSpec.describe GamesController, type: :controller do
 
       it 'includes hole cards for current user only' do
         gp = game.game_players.find_by(user: user)
-        gp.update!(hole_cards: ["Ah", "Kd"])
+        gp.update!(hole_cards: [ "Ah", "Kd" ])
 
         get :show, params: { id: game.id }, format: :json
         json_response = JSON.parse(response.body)
 
         current_user_data = json_response['players'].find { |p| p['user_id'] == user.id }
-        expect(current_user_data['hole_cards']).to eq(["Ah", "Kd"])
+        expect(current_user_data['hole_cards']).to eq([ "Ah", "Kd" ])
       end
     end
   end
@@ -197,11 +197,11 @@ RSpec.describe GamesController, type: :controller do
       create(:game_player, game: game, user: user, position: 0, chips: 500, buyin_amount: 500)
     end
 
-    it 'marks player as left' do
+    it 'removes player from game' do
       post :leave, params: { id: game.id }
 
       game_player = game.game_players.find_by(user: user)
-      expect(game_player.reload.status).to eq('left')
+      expect(game_player).to be_nil
     end
 
     it 'creates cash session' do
@@ -253,7 +253,11 @@ RSpec.describe GamesController, type: :controller do
       end
 
       it 'processes call action' do
-        initial_chips = game_player.chips
+        # Set up a bet for the player to call
+        other_player1.update!(current_bet: 50, chips: 450)
+        game.update!(pot: 50, current_player_position: game_player.position)
+
+        initial_chips = game_player.reload.chips
         post :action, params: { id: game.id, action_type: 'call' }
 
         expect(game_player.reload.chips).to be < initial_chips

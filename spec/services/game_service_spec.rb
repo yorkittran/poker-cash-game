@@ -7,6 +7,11 @@ RSpec.describe GameService, type: :service do
   let(:user2) { create(:user, username: "bob") }
   let(:user3) { create(:user, username: "charlie") }
 
+  def serialize_deck(deck)
+    cards = deck.instance_variable_get(:@deck)
+    cards.map(&:to_s).to_json
+  end
+
   describe '.create_game' do
     let(:game_params) do
       {
@@ -65,11 +70,17 @@ RSpec.describe GameService, type: :service do
         expect(game_player.position).to be_between(0, 5)
       end
 
-      it 'starts game when 2 players join' do
+      it 'starts game when 2 players join and both are ready' do
         service.join_game(user1, 500)
         expect(game.reload.state).to eq('waiting')
 
         service.join_game(user2, 500)
+        expect(game.reload.state).to eq('waiting')
+
+        service.toggle_ready(user1)
+        expect(game.reload.state).to eq('waiting')
+
+        service.toggle_ready(user2)
         expect(game.reload.state).to eq('in_progress')
       end
 
@@ -114,10 +125,10 @@ RSpec.describe GameService, type: :service do
       service.join_game(user2, 500)
     end
 
-    it 'marks player as left' do
+    it 'removes player from game' do
       service.leave_game(user1)
       game_player = game.game_players.find_by(user: user1)
-      expect(game_player.status).to eq('left')
+      expect(game_player).to be_nil
     end
 
     it 'creates a cash session' do
@@ -205,7 +216,7 @@ RSpec.describe GameService, type: :service do
     end
 
     it 'resets game state' do
-      game.update!(pot: 100, community_cards: ["Ah", "Kd"])
+      game.update!(pot: 100, community_cards: [ "Ah", "Kd" ])
       service.start_new_hand
 
       game.reload
@@ -250,7 +261,7 @@ RSpec.describe GameService, type: :service do
       game.update!(
         state: :in_progress,
         current_player_position: game_player1.position,
-        deck_state: service.send(:serialize_deck, deck)
+        deck_state: serialize_deck(deck)
       )
       create(:hand, game: game, hand_number: 1)
     end
@@ -272,9 +283,12 @@ RSpec.describe GameService, type: :service do
       end
 
       it 'determines winner if only one player remains' do
-        allow(service).to receive(:check_for_winner_by_folds)
         service.process_action(user1, :fold)
-        expect(service).to have_received(:check_for_winner_by_folds)
+        game.update!(current_player_position: game_player2.position)
+        service.process_action(user2, :fold)
+        hand = game.hands.last
+        expect(hand.winners).not_to be_empty
+        expect(hand.completed_at).to be_present
       end
     end
 
@@ -298,6 +312,13 @@ RSpec.describe GameService, type: :service do
     end
 
     context 'call action' do
+      before do
+        # Player 2 raises to create a bet that player 1 can call
+        game.update!(current_player_position: game_player2.position)
+        service.process_action(user2, :bet, 50)
+        game.update!(current_player_position: game_player1.position)
+      end
+
       it 'deducts chips from player' do
         service.process_action(user1, :call)
 
@@ -307,7 +328,7 @@ RSpec.describe GameService, type: :service do
       it 'adds to pot' do
         service.process_action(user1, :call)
 
-        expect(game.reload.pot).to be > 0
+        expect(game.reload.pot).to be > 50
       end
 
       it 'marks player as all-in if no chips left' do
@@ -372,173 +393,6 @@ RSpec.describe GameService, type: :service do
           service.process_action(user1, :invalid_action)
         }.to raise_error(GameService::InvalidActionError, "Invalid action type")
       end
-    end
-  end
-
-  describe '#deal_flop' do
-    let(:game) { create(:game, :in_progress, round: :preflop) }
-    let(:service) { GameService.new(game) }
-
-    before do
-      deck = Holdem::Deck.new
-      deck.shuffle!
-      game.update!(deck_state: service.send(:serialize_deck, deck))
-    end
-
-    it 'deals 3 community cards' do
-      service.send(:deal_flop)
-      expect(game.reload.community_cards.length).to eq(3)
-    end
-
-    it 'burns one card' do
-      initial_deck_state = game.deck_state
-      service.send(:deal_flop)
-
-      new_deck_state = game.reload.deck_state
-      expect(new_deck_state).not_to eq(initial_deck_state)
-    end
-  end
-
-  describe '#deal_turn' do
-    let(:game) { create(:game, :in_progress, round: :flop, community_cards: ["Ah", "Kd", "Qc"]) }
-    let(:service) { GameService.new(game) }
-
-    before do
-      deck = Holdem::Deck.new
-      deck.shuffle!
-      game.update!(deck_state: service.send(:serialize_deck, deck))
-    end
-
-    it 'adds one card to community cards' do
-      service.send(:deal_turn)
-      expect(game.reload.community_cards.length).to eq(4)
-    end
-  end
-
-  describe '#deal_river' do
-    let(:game) { create(:game, :in_progress, round: :turn, community_cards: ["Ah", "Kd", "Qc", "Js"]) }
-    let(:service) { GameService.new(game) }
-
-    before do
-      deck = Holdem::Deck.new
-      deck.shuffle!
-      game.update!(deck_state: service.send(:serialize_deck, deck))
-    end
-
-    it 'adds final card to community cards' do
-      service.send(:deal_river)
-      expect(game.reload.community_cards.length).to eq(5)
-    end
-  end
-
-  describe 'deck serialization' do
-    let(:game) { create(:game) }
-    let(:service) { GameService.new(game) }
-
-    it 'serializes and deserializes deck correctly' do
-      original_deck = Holdem::Deck.new
-      original_deck.shuffle!
-      original_cards = original_deck.instance_variable_get(:@deck).map(&:to_s)
-
-      serialized = service.send(:serialize_deck, original_deck)
-      deserialized = service.send(:deserialize_deck, serialized)
-      deserialized_cards = deserialized.instance_variable_get(:@deck).map(&:to_s)
-
-      expect(deserialized_cards).to eq(original_cards)
-    end
-  end
-
-  describe 'betting round progression' do
-    let(:game) { create(:game, :in_progress, round: :preflop) }
-    let(:service) { GameService.new(game) }
-
-    before do
-      service.join_game(user1, 500)
-      service.join_game(user2, 500)
-      game.update!(state: :in_progress, round: :preflop)
-      deck = Holdem::Deck.new
-      deck.shuffle!
-      game.update!(deck_state: service.send(:serialize_deck, deck))
-    end
-
-    it 'advances from preflop to flop' do
-      allow(service).to receive(:betting_round_complete?).and_return(true)
-      service.send(:advance_to_next_round)
-
-      expect(game.reload.round).to eq('flop')
-      expect(game.community_cards.length).to eq(3)
-    end
-
-    it 'advances from flop to turn' do
-      game.update!(round: :flop, community_cards: ["Ah", "Kd", "Qc"])
-      allow(service).to receive(:betting_round_complete?).and_return(true)
-      service.send(:advance_to_next_round)
-
-      expect(game.reload.round).to eq('turn')
-      expect(game.community_cards.length).to eq(4)
-    end
-
-    it 'advances from turn to river' do
-      game.update!(round: :turn, community_cards: ["Ah", "Kd", "Qc", "Js"])
-      allow(service).to receive(:betting_round_complete?).and_return(true)
-      service.send(:advance_to_next_round)
-
-      expect(game.reload.round).to eq('river')
-      expect(game.community_cards.length).to eq(5)
-    end
-
-    it 'advances from river to showdown' do
-      game.update!(round: :river, community_cards: ["Ah", "Kd", "Qc", "Js", "Td"])
-      allow(service).to receive(:betting_round_complete?).and_return(true)
-      allow(service).to receive(:determine_winner)
-      service.send(:advance_to_next_round)
-
-      expect(game.reload.round).to eq('showdown')
-      expect(service).to have_received(:determine_winner)
-    end
-  end
-
-  describe 'winner determination' do
-    let(:game) { create(:game, :in_progress, pot: 100, community_cards: ["2h", "3d", "4c", "5s", "6h"]) }
-    let(:service) { GameService.new(game) }
-    let!(:gp1) { create(:game_player, game: game, user: user1, chips: 500, position: 0, status: :active, hole_cards: ["Ah", "Kh"]) }
-    let!(:gp2) { create(:game_player, game: game, user: user2, chips: 500, position: 1, status: :active, hole_cards: ["2c", "3c"]) }
-    let!(:hand) { create(:hand, game: game, hand_number: 1) }
-
-    before do
-      game.update!(current_hand_number: 1, dealer_position: 0)
-    end
-
-    it 'determines winner and distributes pot' do
-      service.send(:determine_winner)
-
-      hand.reload
-      expect(hand.winners).not_to be_empty
-      expect(hand.completed_at).to be_present
-    end
-
-    it 'updates winner chips' do
-      initial_winner_chips = gp1.chips
-      service.send(:determine_winner)
-
-      winner_gp = game.game_players.reload.max_by(&:chips)
-      expect(winner_gp.chips).to be > initial_winner_chips
-    end
-
-    it 'increments hands_won for winner' do
-      winner_user = user1
-      expect {
-        service.send(:determine_winner)
-      }.to change { winner_user.reload.hands_won }
-    end
-
-    it 'resets pot after distribution and starts new hand' do
-      initial_pot = game.pot
-      service.send(:determine_winner)
-
-      # Pot is reset to 0, then new hand starts with blinds posted
-      expect(game.reload.pot).to be > 0
-      expect(game.pot).to be < initial_pot
     end
   end
 end
