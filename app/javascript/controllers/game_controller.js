@@ -110,11 +110,22 @@ export default class extends Controller {
 
         received: (data) => {
           if (data.error) {
+            this.showError(data.error)
+            this.enableActionButtons()
             if (!this.gameStateReceived && this.retryCount < this.maxRetries) {
               this.retryCount++
               setTimeout(() => this.requestGameState(), 1000)
             }
             return
+          }
+
+          if (data.success && data.redirect) {
+            window.location.href = data.redirect
+            return
+          }
+
+          if (data.success && data.message) {
+            this.showSuccess(data.message)
           }
 
           if (data.type === "game_state" && data.game) {
@@ -389,7 +400,9 @@ export default class extends Controller {
   }
 
   performAction(event) {
-    const actionType = event.target.dataset.action.split("#")[1]
+    event.preventDefault()
+    const button = event.currentTarget
+    const actionType = button.dataset.actionType
     const amount = this.getActionAmount(actionType)
 
     this.gameSubscription.perform("player_action", {
@@ -397,10 +410,44 @@ export default class extends Controller {
       amount: amount
     })
 
+    this.disableActionButtons()
+  }
+
+  disableActionButtons() {
     if (this.hasActionButtonsTarget) {
       const buttons = this.actionButtonsTarget.querySelectorAll("button")
       buttons.forEach(btn => btn.disabled = true)
     }
+  }
+
+  enableActionButtons() {
+    if (this.hasActionButtonsTarget) {
+      const buttons = this.actionButtonsTarget.querySelectorAll("button")
+      buttons.forEach(btn => btn.disabled = false)
+    }
+  }
+
+  toggleReady(event) {
+    event.preventDefault()
+    this.gameSubscription.perform("toggle_ready", {})
+  }
+
+  leaveGame(event) {
+    event.preventDefault()
+    if (!confirm("Are you sure you want to leave? You'll cash out.")) {
+      return
+    }
+    this.gameSubscription.perform("leave_game", {})
+  }
+
+  performRebuy(event) {
+    event.preventDefault()
+    const form = event.target
+    const amount = parseInt(form.querySelector('[name="rebuy_amount"]').value)
+
+    this.gameSubscription.perform("rebuy", {
+      rebuy_amount: amount
+    })
   }
 
   getActionAmount(actionType) {
@@ -422,7 +469,6 @@ export default class extends Controller {
       return
     }
 
-    // Hide all action buttons during showdown mode
     if (this.showdownMode) {
       this.actionButtonsTarget.classList.add("hidden")
       return
@@ -449,6 +495,7 @@ export default class extends Controller {
     const canCheck = amountToCall <= 0
     const canCall = amountToCall > 0
     const callAmount = Math.min(amountToCall, myChips)
+
     if (this.hasCheckButtonWrapperTarget) {
       if (canCheck) {
         this.checkButtonWrapperTarget.classList.remove('hidden')
@@ -459,7 +506,6 @@ export default class extends Controller {
     if (this.hasCallButtonWrapperTarget) {
       if (canCall) {
         this.callButtonWrapperTarget.classList.remove('hidden')
-        // Update call amount text
         const callBtn = this.callButtonWrapperTarget.querySelector('button')
         if (callBtn) {
           callBtn.textContent = `Call ${callAmount}`
@@ -469,14 +515,10 @@ export default class extends Controller {
       }
     }
 
-    // Update all form buttons
-    this.actionButtonsTarget.querySelectorAll("form").forEach(form => {
-      const actionType = form.querySelector('input[name="action_type"]')?.value ||
-                         new URLSearchParams(form.action.split('?')[1] || '').get('action_type')
-      const btn = form.querySelector("button")
-      const inputs = form.querySelectorAll("input:not([type='hidden'])")
+    this.actionButtonsTarget.querySelectorAll("button[data-action-type]").forEach(btn => {
+      const actionType = btn.dataset.actionType
 
-      if (!btn) return
+      if (!actionType) return
 
       let shouldEnable = isYourTurn
 
@@ -487,33 +529,21 @@ export default class extends Controller {
         shouldEnable = isYourTurn && canCall
         btn.textContent = canCall ? `Call ${callAmount}` : 'Call'
       } else if (actionType === 'raise') {
-        const amountInput = form.querySelector('input[name="amount"]')
-        if (amountInput) {
-          amountInput.min = minRaise
-          amountInput.max = myChips + myBet
-          amountInput.value = Math.max(parseInt(amountInput.value) || minRaise, minRaise)
-          amountInput.disabled = !isYourTurn
-        }
         btn.textContent = canCall ? 'Raise to' : 'Bet'
+      } else if (actionType === 'all_in') {
+        btn.textContent = `All In (${myChips})`
       }
 
       btn.disabled = !shouldEnable
-
-      inputs.forEach(input => {
-        input.disabled = !isYourTurn
-      })
     })
-    this.actionButtonsTarget.querySelectorAll("form[method='post']").forEach(form => {
-      const btn = form.querySelector("button")
-      if (!btn) return
 
-      const actionMatch = form.action.match(/action_type=(\w+)/)
-      const actionType = actionMatch ? actionMatch[1] : null
-
-      if (actionType === 'fold' || actionType === 'all_in') {
-        btn.disabled = !isYourTurn
-      }
-    })
+    const raiseAmountInput = this.actionButtonsTarget.querySelector('[data-game-target="raiseAmount"]')
+    if (raiseAmountInput) {
+      raiseAmountInput.min = minRaise
+      raiseAmountInput.max = myChips + myBet
+      raiseAmountInput.value = Math.max(parseInt(raiseAmountInput.value) || minRaise, minRaise)
+      raiseAmountInput.disabled = !isYourTurn
+    }
 
     this.actionButtonsTarget.classList.remove("hidden")
     if (this.hasCurrentTurnTarget) {
@@ -820,6 +850,18 @@ export default class extends Controller {
     }
   }
 
+  showSuccess(message) {
+    if (this.hasStatusMessageTarget) {
+      this.statusMessageTarget.textContent = message
+      this.statusMessageTarget.classList.remove("hidden", "text-red-600")
+      this.statusMessageTarget.classList.add("text-emerald-400")
+
+      setTimeout(() => {
+        this.statusMessageTarget.classList.add("hidden")
+      }, 3000)
+    }
+  }
+
   showWinnerAlert(winners) {
     const existingAlert = document.getElementById('winner-alert')
     if (existingAlert) return
@@ -897,8 +939,7 @@ export default class extends Controller {
         <p class="text-white/80 text-sm mb-4 text-center">
           You need to rebuy to continue playing
         </p>
-        <form action="/games/${game.id}/rebuy" method="post" class="space-y-4">
-          <input type="hidden" name="authenticity_token" value="${this.getCSRFToken()}">
+        <form data-action="submit->game#performRebuy" class="space-y-4">
           <div>
             <label class="text-white text-sm font-medium mb-2 block">Rebuy Amount</label>
             <input
@@ -909,7 +950,7 @@ export default class extends Controller {
               value="${game.min_buyin}"
               class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
             >
-            <p class="text-white/60 text-xs mt-1">Min: $${game.min_buyin} - Max: $${game.max_buyin}</p>
+            <p class="text-white/60 text-xs mt-1">Min: ${game.min_buyin} - Max: ${game.max_buyin}</p>
           </div>
           <div class="flex gap-3">
             <button
@@ -918,13 +959,13 @@ export default class extends Controller {
             >
               Rebuy
             </button>
-            <a
-              href="/games/${game.id}/leave"
-              data-turbo-method="post"
-              class="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg transition text-center"
+            <button
+              type="button"
+              data-action="click->game#leaveGame"
+              class="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg transition"
             >
               Leave Table
-            </a>
+            </button>
           </div>
         </form>
       </div>

@@ -20,9 +20,10 @@
         </div>
 
         <% if @game_player %>
-          <%= button_to leave_game_path(@game), method: :post, class: "px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl border border-red-500/30 transition-colors", data: { turbo_confirm: "Are you sure you want to leave? You'll cash out with #{@game_player.chips} chips." } do %>
+          <button data-action="click->game#leaveGame"
+                  class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl border border-red-500/30 transition-colors">
             Leave Table
-          <% end %>
+          </button>
         <% end %>
       </div>
     </div>
@@ -138,7 +139,7 @@
                       </span>
                       <span class="text-white font-medium w-10 text-right">
                         <% if action.amount && action.amount > 0 %>
-                          $<%= action.amount %>
+                          <%= action.amount %>
                         <% end %>
                       </span>
                     </div>
@@ -181,15 +182,10 @@
 
           <!-- Ready Button -->
           <div class="text-center" data-game-target="readyButton">
-            <% if @game_player.ready %>
-              <%= button_to ready_game_path(@game), method: :post, class: "px-8 py-3 bg-gray-500/20 hover:bg-gray-500/30 text-gray-300 font-semibold rounded-xl border border-gray-500/30 transition-all" do %>
-                Cancel Ready
-              <% end %>
-            <% else %>
-              <%= button_to ready_game_path(@game), method: :post, class: "px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 transition-all" do %>
-                I'm Ready!
-              <% end %>
-            <% end %>
+            <button data-action="click->game#toggleReady"
+                    class="<%= @game_player.ready ? 'px-8 py-3 bg-gray-500/20 hover:bg-gray-500/30 text-gray-300 font-semibold rounded-xl border border-gray-500/30 transition-all' : 'px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 transition-all' %>">
+              <%= @game_player.ready ? 'Cancel Ready' : "I'm Ready!" %>
+            </button>
 
             <% ready_count = @players.count(&:ready) %>
             <% total_count = @players.count %>
@@ -234,49 +230,52 @@
             is_my_turn = @game_player.position == @game.current_player_position
           %>
           <div class="flex flex-wrap items-center justify-center gap-3" data-game-target="actionButtonsContainer">
-            <%= button_to "Fold", action_game_path(@game, action_type: 'fold'),
-                method: :post,
-                disabled: !is_my_turn,
-                class: "px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold rounded-xl border border-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed" %>
+            <button data-action="click->game#performAction"
+                    data-action-type="fold"
+                    <%= !is_my_turn ? 'disabled' : '' %>
+                    class="px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold rounded-xl border border-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              Fold
+            </button>
 
             <!-- Check button - shown when no bet to call -->
             <div data-game-target="checkButtonWrapper" class="<%= can_call ? 'hidden' : '' %>">
-              <%= button_to "Check", action_game_path(@game, action_type: 'check'),
-                  method: :post,
-                  disabled: !is_my_turn || can_call,
-                  class: "px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-semibold rounded-xl border border-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                  data: { action_type: 'check' } %>
+              <button data-action="click->game#performAction"
+                      data-action-type="check"
+                      <%= !is_my_turn || can_call ? 'disabled' : '' %>
+                      class="px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-semibold rounded-xl border border-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                Check
+              </button>
             </div>
 
             <!-- Call button - shown when there's a bet to call -->
             <div data-game-target="callButtonWrapper" class="<%= can_check ? 'hidden' : '' %>">
-              <%= button_to "Call #{call_amount}", action_game_path(@game, action_type: 'call'),
-                  method: :post,
-                  disabled: !is_my_turn || can_check,
-                  class: "px-6 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-semibold rounded-xl border border-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                  data: { action_type: 'call' } %>
+              <button data-action="click->game#performAction"
+                      data-action-type="call"
+                      <%= !is_my_turn || can_check ? 'disabled' : '' %>
+                      class="px-6 py-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-semibold rounded-xl border border-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                Call <%= call_amount %>
+              </button>
             </div>
 
             <div class="flex items-center space-x-2">
-              <%= form_with url: action_game_path(@game), method: :post, local: true, class: "flex items-center space-x-2", data: { action_type: 'raise' } do %>
-                <input type="hidden" name="action_type" value="raise">
-                <input type="number" name="amount" value="<%= min_raise %>" min="<%= min_raise %>" max="<%= @game_player.chips + @game_player.current_bet %>"
-                       class="w-24 px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-center focus:outline-none focus:ring-2 focus:ring-amber-500"
-                       data-game-target="raiseAmount"
-                       <%= !is_my_turn ? 'disabled' : '' %>>
-                <button type="submit"
-                        <%= !is_my_turn ? 'disabled' : '' %>
-                        class="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 font-semibold rounded-xl border border-amber-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                  <%= can_call ? 'Raise to' : 'Bet' %>
-                </button>
-              <% end %>
+              <input type="number" value="<%= min_raise %>" min="<%= min_raise %>" max="<%= @game_player.chips + @game_player.current_bet %>"
+                     class="w-24 px-3 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-center focus:outline-none focus:ring-2 focus:ring-amber-500"
+                     data-game-target="raiseAmount"
+                     <%= !is_my_turn ? 'disabled' : '' %>>
+              <button data-action="click->game#performAction"
+                      data-action-type="raise"
+                      <%= !is_my_turn ? 'disabled' : '' %>
+                      class="px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 font-semibold rounded-xl border border-amber-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <%= can_call ? 'Raise to' : 'Bet' %>
+              </button>
             </div>
 
-            <%= button_to "All In (#{@game_player.chips})", action_game_path(@game, action_type: 'all_in'),
-                method: :post,
-                disabled: !is_my_turn,
-                class: "px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-semibold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed",
-                data: { action_type: 'all_in' } %>
+            <button data-action="click->game#performAction"
+                    data-action-type="all_in"
+                    <%= !is_my_turn ? 'disabled' : '' %>
+                    class="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-semibold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              All In (<%= @game_player.chips %>)
+            </button>
           </div>
         </div>
       </div>

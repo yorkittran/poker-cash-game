@@ -1,6 +1,6 @@
 class GamesController < ApplicationController
   before_action :authenticate_user!
-  before_action :set_game, only: [ :show, :join, :leave, :action, :ready, :rebuy ]
+  before_action :set_game, only: [ :show, :join ]
 
   def index
     @games = Game.where(state: [ :waiting, :in_progress ]).order(created_at: :desc)
@@ -59,10 +59,30 @@ class GamesController < ApplicationController
   end
 
   def create
+    buyin_amount = params[:initial_buyin].to_i
+
+    if GamePlayer.joins(:game)
+                  .where(user: current_user)
+                  .where(games: { state: [:waiting, :in_progress] })
+                  .exists?
+      respond_to do |format|
+        format.html { redirect_to games_path, alert: "You're already in an active game. Please leave it before creating a new one." }
+        format.json { render json: { error: "Already in an active game" }, status: :unprocessable_entity }
+      end
+      return
+    end
+
+    if current_user.total_bankroll < buyin_amount
+      respond_to do |format|
+        format.html { redirect_to games_path, alert: "Insufficient bankroll. You have $#{current_user.total_bankroll} but need $#{buyin_amount}." }
+        format.json { render json: { error: "Insufficient bankroll" }, status: :unprocessable_entity }
+      end
+      return
+    end
+
     service = GameService.create_game(current_user, game_params)
 
-    if service
-      service.join_game(current_user, params[:initial_buyin].to_i)
+    if service && service.join_game(current_user, buyin_amount)
       game = service.instance_variable_get(:@game)
 
       Broadcasters::LobbyBroadcaster.broadcast
@@ -73,15 +93,36 @@ class GamesController < ApplicationController
       end
     else
       respond_to do |format|
-        format.html { redirect_to games_path, alert: "Failed to create game" }
+        format.html { redirect_to games_path, alert: "Failed to create game. Please check your inputs and try again." }
         format.json { render json: { error: "Failed to create game" }, status: :unprocessable_entity }
       end
     end
   end
 
   def join
-    service = GameService.new(@game)
     buyin_amount = params[:buyin_amount].to_i
+
+    if GamePlayer.joins(:game)
+                  .where(user: current_user)
+                  .where(games: { state: [:waiting, :in_progress] })
+                  .where.not(game_id: @game.id)
+                  .exists?
+      respond_to do |format|
+        format.html { redirect_to games_path, alert: "You're already in another active game. Please leave it first." }
+        format.json { render json: { error: "Already in another active game" }, status: :unprocessable_entity }
+      end
+      return
+    end
+
+    if current_user.total_bankroll < buyin_amount
+      respond_to do |format|
+        format.html { redirect_to games_path, alert: "Insufficient bankroll. You have $#{current_user.total_bankroll} but need $#{buyin_amount}." }
+        format.json { render json: { error: "Insufficient bankroll" }, status: :unprocessable_entity }
+      end
+      return
+    end
+
+    service = GameService.new(@game)
 
     if service.join_game(current_user, buyin_amount)
       Broadcasters::GameBroadcaster.broadcast(@game)
@@ -93,101 +134,8 @@ class GamesController < ApplicationController
       end
     else
       respond_to do |format|
-        format.html { redirect_to games_path, alert: "Failed to join game" }
+        format.html { redirect_to games_path, alert: "Failed to join game. The table may be full or you may already be in this game." }
         format.json { render json: { error: "Failed to join game" }, status: :unprocessable_entity }
-      end
-    end
-  end
-
-  def leave
-    service = GameService.new(@game)
-
-    if service.leave_game(current_user)
-      Broadcasters::GameBroadcaster.broadcast(@game)
-      Broadcasters::LobbyBroadcaster.broadcast
-
-      respond_to do |format|
-        format.html { redirect_to games_path, notice: "Left game successfully!" }
-        format.json { render json: { message: "Left game successfully!" }, status: :ok }
-      end
-    else
-      respond_to do |format|
-        format.html { redirect_to game_path(@game), alert: "Failed to leave game" }
-        format.json { render json: { error: "Failed to leave game" }, status: :unprocessable_entity }
-      end
-    end
-  end
-
-  def action
-    service = GameService.new(@game)
-
-    begin
-      service.process_action(
-        current_user,
-        params[:action_type],
-        params[:amount]&.to_i
-      )
-
-      @game.reload
-      Broadcasters::GameBroadcaster.broadcast(@game)
-
-      respond_to do |format|
-        format.html { redirect_to game_path(@game), notice: "Action processed" }
-        format.json do
-          render json: {
-            message: "Action processed",
-            game_state: {
-              round: @game.round,
-              pot: @game.pot,
-              community_cards: @game.community_cards,
-              current_player_position: @game.current_player_position
-            }
-          }, status: :ok
-        end
-      end
-    rescue GameService::InvalidActionError, GameService::NotPlayersTurnError, GameService::InsufficientChipsError => e
-      respond_to do |format|
-        format.html { redirect_to game_path(@game), alert: e.message }
-        format.json { render json: { error: e.message }, status: :unprocessable_entity }
-      end
-    end
-  end
-
-  def ready
-    service = GameService.new(@game)
-
-    if service.toggle_ready(current_user)
-      @game.reload
-      Broadcasters::GameBroadcaster.broadcast(@game)
-      Broadcasters::LobbyBroadcaster.broadcast
-
-      respond_to do |format|
-        format.html { redirect_to game_path(@game) }
-        format.json { render json: { message: "Ready status updated" }, status: :ok }
-      end
-    else
-      respond_to do |format|
-        format.html { redirect_to game_path(@game), alert: "Could not update ready status" }
-        format.json { render json: { error: "Could not update ready status" }, status: :unprocessable_entity }
-      end
-    end
-  end
-
-  def rebuy
-    service = GameService.new(@game)
-    rebuy_amount = params[:rebuy_amount].to_i
-
-    if service.rebuy(current_user, rebuy_amount)
-      Broadcasters::GameBroadcaster.broadcast(@game)
-
-      respond_to do |format|
-        format.html { redirect_to game_path(@game), notice: "Rebuy successful! You'll join the next hand." }
-        format.json { render json: { message: "Rebuy successful" }, status: :ok }
-      end
-    else
-      respond_to do |format|
-        format.html { redirect_to game_path(@game), alert: "Failed to rebuy. Check amount and try again." }
-        format.json { render json: { error: "Failed to rebuy" }, status: :unprocessable_entity }
       end
     end
   end

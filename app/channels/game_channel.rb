@@ -89,4 +89,90 @@ class GameChannel < ApplicationCable::Channel
       transmit({ error: "Failed to advance showdown round" })
     end
   end
+
+  def toggle_ready(data = {})
+    game = Game.find(params[:game_id])
+    service = GameService.new(game)
+
+    if service.toggle_ready(current_user)
+      game.reload
+      Broadcasters::GameBroadcaster.broadcast(game)
+      Broadcasters::LobbyBroadcaster.broadcast
+    else
+      transmit({ error: "Could not update ready status" })
+    end
+  rescue StandardError => e
+    Rails.logger.error "[GameChannel] Ready error: #{e.message}"
+    transmit({ error: "An error occurred" })
+  end
+
+  def join_game(data)
+    game = Game.find(params[:game_id])
+    buyin_amount = data["buyin_amount"].to_i
+
+    if GamePlayer.joins(:game)
+                  .where(user: current_user)
+                  .where(games: { state: [:waiting, :in_progress] })
+                  .where.not(game_id: game.id)
+                  .exists?
+      transmit({ error: "You're already in another active game" })
+      return
+    end
+
+    if current_user.total_bankroll < buyin_amount
+      transmit({ error: "Insufficient bankroll. You have $#{current_user.total_bankroll} but need $#{buyin_amount}" })
+      return
+    end
+
+    service = GameService.new(game)
+
+    if service.join_game(current_user, buyin_amount)
+      Broadcasters::GameBroadcaster.broadcast(game)
+      Broadcasters::LobbyBroadcaster.broadcast
+      transmit({ success: true, message: "Joined game successfully!" })
+    else
+      transmit({ error: "Failed to join game. Table may be full." })
+    end
+  rescue StandardError => e
+    Rails.logger.error "[GameChannel] Join error: #{e.message}"
+    transmit({ error: "Failed to join game: #{e.message}" })
+  end
+
+  def leave_game(data = {})
+    game = Game.find(params[:game_id])
+    service = GameService.new(game)
+
+    if service.leave_game(current_user)
+      Broadcasters::GameBroadcaster.broadcast(game)
+      Broadcasters::LobbyBroadcaster.broadcast
+      transmit({ success: true, redirect: "/games" })
+    else
+      transmit({ error: "Failed to leave game" })
+    end
+  rescue StandardError => e
+    Rails.logger.error "[GameChannel] Leave error: #{e.message}"
+    transmit({ error: "Failed to leave game" })
+  end
+
+  def rebuy(data)
+    game = Game.find(params[:game_id])
+    rebuy_amount = data["rebuy_amount"].to_i
+
+    if current_user.total_bankroll < rebuy_amount
+      transmit({ error: "Insufficient bankroll. You have $#{current_user.total_bankroll} but need $#{rebuy_amount}" })
+      return
+    end
+
+    service = GameService.new(game)
+
+    if service.rebuy(current_user, rebuy_amount)
+      Broadcasters::GameBroadcaster.broadcast(game)
+      transmit({ success: true, message: "Rebuy successful!" })
+    else
+      transmit({ error: "Failed to rebuy. Check your status and amount." })
+    end
+  rescue StandardError => e
+    Rails.logger.error "[GameChannel] Rebuy error: #{e.message}"
+    transmit({ error: "Failed to rebuy: #{e.message}" })
+  end
 end

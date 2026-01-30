@@ -24,7 +24,7 @@
 
       <div class="mt-2 text-center">
         <p class="text-white text-sm font-medium"><%= player.user.username %></p>
-        <p class="text-emerald-400 text-xs font-semibold">$<%= number_with_delimiter(player.chips) %></p>
+        <p class="text-emerald-400 text-xs font-semibold"><%= number_with_delimiter(player.chips) %></p>
       </div>
 
       <% if player.user_id == current_user.id && player.hole_cards.present? %>

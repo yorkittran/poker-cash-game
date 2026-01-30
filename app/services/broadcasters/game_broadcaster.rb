@@ -15,7 +15,7 @@ module Broadcasters
 
     def broadcast
       @game.reload
-      GameChannel.broadcast_to(@game, game_state)
+      GameChannel.broadcast_to(@game, broadcast_game_state)
     end
 
     def game_state
@@ -33,6 +33,20 @@ module Broadcasters
         your_position: current_player&.position,
         your_hole_cards: current_player&.hole_cards,
         is_your_turn: current_player&.position == @game.current_player_position
+      }
+    end
+
+    def broadcast_game_state
+      current_hand = @game.hands.order(:created_at).last
+      players_data = @game.game_players.reload.by_position.includes(:user)
+      max_bet = players_data.maximum(:current_bet) || 0
+
+      {
+        type: "game_state",
+        game: game_data(max_bet),
+        players: players_data.map { |player| player_data(player, current_hand) },
+        actions: actions_data(current_hand),
+        winners: current_hand&.winners
       }
     end
 
